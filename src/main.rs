@@ -1,10 +1,12 @@
 use iced::{Element, Task, Theme};
 
+mod db;
 mod feed_engine;
 mod models;
 mod ui;
 mod utils;
 
+use db::ArticleDatabase;
 use models::{AppSettings, Article, Feed, FeedData};
 use ui::{content::ContentMessage, settings::SettingsMessage, sidebar::SidebarMessage};
 
@@ -21,6 +23,8 @@ struct App {
     loading: bool,
     settings: AppSettings,
     show_settings: bool,
+    db: ArticleDatabase,
+    current_article: Option<Article>,
 }
 
 #[derive(Debug, Clone)]
@@ -29,10 +33,18 @@ enum Message {
     Content(ContentMessage),
     Settings(SettingsMessage),
     FeedFetched(String, Result<FeedData, String>),
+    ArticleClicked(Article),
+    BackToList,
 }
 
 impl App {
     fn new() -> (Self, Task<Message>) {
+        let db = ArticleDatabase::new().unwrap_or_else(|e| {
+            eprintln!("Failed to initialize database: {}", e);
+            // In case of failure, try again (this will likely work or panic)
+            ArticleDatabase::new().expect("Could not create database")
+        });
+        
         (
             Self {
                 feeds: vec![],
@@ -41,6 +53,8 @@ impl App {
                 loading: false,
                 settings: AppSettings::default(),
                 show_settings: false,
+                db,
+                current_article: None,
             },
             Task::none(),
         )
@@ -86,7 +100,12 @@ impl App {
                     Task::none()
                 }
             },
-            Message::Content(_) => Task::none(),
+            Message::Content(content_msg) => match content_msg {
+                ContentMessage::ArticleClicked(article) => {
+                    // Forward to main message handler
+                    self.update(Message::ArticleClicked(article))
+                }
+            },
             Message::Settings(settings_msg) => match settings_msg {
                 SettingsMessage::ThemeSelected(theme) => {
                     self.settings.theme = theme;
@@ -123,6 +142,18 @@ impl App {
                 }
                 Task::none()
             }
+            Message::ArticleClicked(article) => {
+                // Mark article as viewed in database
+                if let Err(e) = self.db.mark_as_viewed(&article.link, &article.title) {
+                    eprintln!("Failed to mark article as viewed: {}", e);
+                }
+                self.current_article = Some(article);
+                Task::none()
+            }
+            Message::BackToList => {
+                self.current_article = None;
+                Task::none()
+            }
         }
     }
 
@@ -132,10 +163,13 @@ impl App {
 
         if self.show_settings {
             ui::settings_view(&self.settings).map(Message::Settings)
+        } else if let Some(article) = &self.current_article {
+            // Show article detail view
+            ui::article_detail_view(article).map(|_| Message::BackToList)
         } else {
             let content = row![
                 ui::sidebar_view(&self.feeds, &self.feed_input).map(Message::Sidebar),
-                ui::content_view(&self.articles, self.loading, &self.settings)
+                ui::content_view(&self.articles, self.loading, &self.settings, &self.db)
                     .map(Message::Content),
             ]
             .spacing(0);

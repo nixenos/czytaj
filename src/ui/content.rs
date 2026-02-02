@@ -1,14 +1,18 @@
-use iced::widget::{column, container, scrollable, text, Column};
+use iced::widget::{button, column, container, scrollable, text, Column};
 use iced::{Element, Length, Padding, Shadow, Theme};
 use crate::models::{Article, AppSettings};
+use crate::db::ArticleDatabase;
 
 #[derive(Debug, Clone)]
-pub enum ContentMessage {}
+pub enum ContentMessage {
+    ArticleClicked(Article),
+}
 
 pub fn content_view<'a>(
     articles: &'a [Article],
     loading: bool,
     settings: &'a AppSettings,
+    db: &'a ArticleDatabase,
 ) -> Element<'a, ContentMessage> {
     let mut article_list = Column::new()
         .spacing(20)
@@ -89,15 +93,21 @@ pub fn content_view<'a>(
     } else {
         // Article cards with Material Design elevation
         for article in articles {
+            let is_viewed = db.is_viewed(&article.link).unwrap_or(false);
+            
             let mut article_content = Column::new().spacing(10);
 
             // Article title with prominent styling
             article_content = article_content.push(
                 text(&article.title)
                     .size(20)
-                    .style(|theme: &Theme| {
+                    .style(move |theme: &Theme| {
                         text::Style {
-                            color: Some(theme.palette().text),
+                            color: Some(if is_viewed {
+                                theme.extended_palette().background.strong.text
+                            } else {
+                                theme.palette().text
+                            }),
                         }
                     })
             );
@@ -143,13 +153,19 @@ pub fn content_view<'a>(
                     })
             );
 
-            // Material card with elevation and theme colors
-            let article_item = container(article_content.padding(Padding::from([20, 24])))
+            // Material card with elevation and theme colors wrapped in button
+            let article_card = container(article_content.padding(Padding::from([20, 24])))
                 .width(Length::Fill)
-                .style(|theme: &Theme| {
+                .style(move |theme: &Theme| {
                     let palette = theme.extended_palette();
                     container::Style {
-                        background: Some(iced::Background::Color(palette.background.weak.color)),
+                        background: Some(iced::Background::Color(
+                            if is_viewed {
+                                palette.background.base.color
+                            } else {
+                                palette.background.weak.color
+                            }
+                        )),
                         border: iced::Border {
                             color: palette.background.strong.color,
                             width: 0.0,
@@ -164,7 +180,31 @@ pub fn content_view<'a>(
                     }
                 });
 
-            article_list = article_list.push(article_item);
+            let article_button = button(article_card)
+                .on_press(ContentMessage::ArticleClicked(article.clone()))
+                .padding(0)
+                .style(|theme: &Theme, status| {
+                    let base = button::Style {
+                        background: None,
+                        text_color: theme.palette().text,
+                        border: iced::Border::default(),
+                        shadow: Shadow::default(),
+                    };
+                    
+                    match status {
+                        button::Status::Hovered => button::Style {
+                            shadow: Shadow {
+                                color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                                offset: iced::Vector::new(0.0, 4.0),
+                                blur_radius: 12.0,
+                            },
+                            ..base
+                        },
+                        _ => base,
+                    }
+                });
+
+            article_list = article_list.push(article_button);
         }
     }
 
