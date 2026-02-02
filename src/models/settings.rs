@@ -54,7 +54,7 @@ impl AppTheme {
         ]
     }
 
-    pub fn to_iced_theme(&self) -> Theme {
+    pub fn to_iced_theme(self) -> Theme {
         match self {
             AppTheme::CatppuccinMocha => Theme::CatppuccinMocha,
             AppTheme::CatppuccinMacchiato => Theme::CatppuccinMacchiato,
