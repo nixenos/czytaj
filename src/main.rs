@@ -2,7 +2,7 @@ use iced::widget::{button, column, container, row, scrollable, text, text_input,
 use iced::{color, Element, Length, Padding, Task, Theme};
 
 mod feed_engine;
-use feed_engine::{Article, FeedEngine};
+use feed_engine::{fetch_feed, Article, FeedData};
 
 fn main() -> iced::Result {
     iced::application("Czytaj - RSS Reader", App::update, App::view)
@@ -27,7 +27,7 @@ struct App {
 enum Message {
     FeedInputChanged(String),
     AddFeed,
-    FeedsFetched(Result<Vec<Article>, String>),
+    FeedFetched(String, Result<FeedData, String>),
     RefreshFeed(String),
 }
 
@@ -58,31 +58,43 @@ impl App {
                 let url = self.feed_input.clone();
                 self.feeds.push(Feed {
                     url: url.clone(),
-                    title: url.clone(),
+                    title: "Loading...".to_string(),
                 });
                 self.feed_input.clear();
                 self.loading = true;
 
                 Task::perform(
-                    FeedEngine::fetch_feed(url),
-                    Message::FeedsFetched,
+                    async move {
+                        let result = fetch_feed(url.clone()).await;
+                        (url, result)
+                    },
+                    |(url, result)| Message::FeedFetched(url, result),
                 )
             }
             Message::RefreshFeed(url) => {
                 self.loading = true;
                 Task::perform(
-                    FeedEngine::fetch_feed(url),
-                    Message::FeedsFetched,
+                    async move {
+                        let result = fetch_feed(url.clone()).await;
+                        (url, result)
+                    },
+                    |(url, result)| Message::FeedFetched(url, result),
                 )
             }
-            Message::FeedsFetched(result) => {
+            Message::FeedFetched(url, result) => {
                 self.loading = false;
                 match result {
-                    Ok(articles) => {
-                        self.articles = articles;
+                    Ok(feed_data) => {
+                        // Update feed title
+                        if let Some(feed) = self.feeds.iter_mut().find(|f| f.url == url) {
+                            feed.title = feed_data.title;
+                        }
+                        self.articles = feed_data.articles;
                     }
                     Err(e) => {
                         eprintln!("Error fetching feed: {}", e);
+                        // Remove the feed if it failed to load
+                        self.feeds.retain(|f| f.url != url);
                     }
                 }
                 Task::none()
@@ -307,6 +319,6 @@ impl App {
     }
 
     fn theme(&self) -> Theme {
-        Theme::TokyoNightStorm
+        Theme::CatppuccinMocha
     }
 }

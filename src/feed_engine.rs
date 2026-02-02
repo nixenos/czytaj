@@ -6,45 +6,57 @@ pub struct Article {
     pub link: String,
 }
 
-pub struct FeedEngine;
+#[derive(Debug, Clone)]
+pub struct FeedData {
+    pub title: String,
+    pub articles: Vec<Article>,
+}
 
-impl FeedEngine {
-    pub async fn fetch_feed(url: String) -> Result<Vec<Article>, String> {
-        // Fetch the RSS/Atom feed
-        let response = reqwest::get(&url)
-            .await
-            .map_err(|e| format!("Failed to fetch feed: {}", e))?;
+pub async fn fetch_feed(url: String) -> Result<FeedData, String> {
+    // Fetch the RSS/Atom feed
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| format!("Failed to fetch feed: {}", e))?;
 
-        let content = response
-            .text()
-            .await
-            .map_err(|e| format!("Failed to read feed content: {}", e))?;
+    let content = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read feed content: {}", e))?;
 
-        // Parse the feed
-        let feed = parser::parse(content.as_bytes())
-            .map_err(|e| format!("Failed to parse feed: {}", e))?;
+    // Parse the feed
+    let feed = parser::parse(content.as_bytes())
+        .map_err(|e| format!("Failed to parse feed: {}", e))?;
 
-        // Extract articles
-        let articles: Vec<Article> = feed
-            .entries
-            .iter()
-            .map(|entry| {
-                let title = entry
-                    .title
-                    .as_ref()
-                    .map(|t| t.content.clone())
-                    .unwrap_or_else(|| "Untitled".to_string());
+    // Extract feed title
+    let feed_title = feed
+        .title
+        .as_ref()
+        .map(|t| t.content.clone())
+        .unwrap_or_else(|| url.clone());
 
-                let link = entry
-                    .links
-                    .first()
-                    .map(|l| l.href.clone())
-                    .unwrap_or_else(|| "No link".to_string());
+    // Extract articles
+    let articles: Vec<Article> = feed
+        .entries
+        .iter()
+        .map(|entry| {
+            let title = entry
+                .title
+                .as_ref()
+                .map(|t| t.content.clone())
+                .unwrap_or_else(|| "Untitled".to_string());
 
-                Article { title, link }
-            })
-            .collect();
+            let link = entry
+                .links
+                .first()
+                .map(|l| l.href.clone())
+                .unwrap_or_else(|| "No link".to_string());
 
-        Ok(articles)
-    }
+            Article { title, link }
+        })
+        .collect();
+
+    Ok(FeedData {
+        title: feed_title,
+        articles,
+    })
 }
