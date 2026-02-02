@@ -1,5 +1,5 @@
 use iced::widget::{button, column, container, pick_list, text, Column};
-use iced::{color, Element, Length, Padding, Theme};
+use iced::{Element, Length, Padding, Shadow, Theme};
 use crate::models::{AppSettings, AppTheme};
 
 #[derive(Debug, Clone)]
@@ -12,81 +12,31 @@ pub enum SettingsMessage {
 
 pub fn settings_view<'a>(settings: &'a AppSettings) -> Element<'a, SettingsMessage> {
     let mut content = Column::new()
-        .spacing(20)
-        .padding(Padding::from([30, 40]));
+        .spacing(24)
+        .padding(Padding::from([40, 50]))
+        .max_width(600);
 
+    // Modern header
     content = content.push(
         text("Settings")
-            .size(32)
-            .color(color!(0xE0E0E0))
+            .size(40)
+            .style(|theme: &Theme| {
+                text::Style {
+                    color: Some(theme.palette().text),
+                }
+            })
     );
 
+    // Material divider
     content = content.push(
         container(column![])
             .height(2)
             .width(Length::Fill)
-            .style(|_theme: &Theme| {
+            .style(|theme: &Theme| {
                 container::Style {
-                    background: Some(iced::Background::Color(color!(0x3A3A3A))),
-                    ..Default::default()
-                }
-            })
-    );
-
-    // Theme selector
-    content = content.push(
-        column![
-            text("Theme")
-                .size(18)
-                .color(color!(0xE0E0E0)),
-            pick_list(
-                AppTheme::all(),
-                Some(settings.theme),
-                SettingsMessage::ThemeSelected,
-            )
-            .placeholder("Select a theme...")
-            .text_size(14)
-            .padding(10)
-            .width(Length::Fixed(300.0))
-            .style(|_theme: &Theme, _status| {
-                pick_list::Style {
-                    text_color: color!(0xE0E0E0),
-                    background: iced::Background::Color(color!(0x2A2A2A)),
-                    placeholder_color: color!(0x606060),
-                    handle_color: color!(0x808080),
+                    background: Some(iced::Background::Color(theme.extended_palette().primary.strong.color)),
                     border: iced::Border {
-                        color: color!(0x3A3A3A),
-                        width: 1.0,
-                        radius: 4.0.into(),
-                    },
-                }
-            })
-        ]
-        .spacing(10)
-    );
-
-    // Show images toggle
-    let images_btn_text = if settings.show_images {
-        "✓ Show Images"
-    } else {
-        "✗ Show Images"
-    };
-    content = content.push(
-        button(text(images_btn_text).size(14).color(color!(0xE0E0E0)))
-            .on_press(SettingsMessage::ToggleImages)
-            .padding([10, 20])
-            .style(move |_theme: &Theme, _status| {
-                button::Style {
-                    background: Some(iced::Background::Color(
-                        if settings.show_images {
-                            color!(0x3A7CA5)
-                        } else {
-                            color!(0x2A2A2A)
-                        }
-                    )),
-                    text_color: color!(0xE0E0E0),
-                    border: iced::Border {
-                        radius: 4.0.into(),
+                        radius: 1.0.into(),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -94,61 +44,184 @@ pub fn settings_view<'a>(settings: &'a AppSettings) -> Element<'a, SettingsMessa
             })
     );
 
-    // Show excerpts toggle
-    let excerpts_btn_text = if settings.show_excerpts {
-        "✓ Show Excerpts"
-    } else {
-        "✗ Show Excerpts"
-    };
+    // Theme selector section with Material card
     content = content.push(
-        button(text(excerpts_btn_text).size(14).color(color!(0xE0E0E0)))
-            .on_press(SettingsMessage::ToggleExcerpts)
-            .padding([10, 20])
-            .style(move |_theme: &Theme, _status| {
-                button::Style {
-                    background: Some(iced::Background::Color(
-                        if settings.show_excerpts {
-                            color!(0x3A7CA5)
-                        } else {
-                            color!(0x2A2A2A)
+        container(
+            column![
+                text("Appearance")
+                    .size(20)
+                    .style(|theme: &Theme| {
+                        text::Style {
+                            color: Some(theme.palette().text),
                         }
-                    )),
-                    text_color: color!(0xE0E0E0),
-                    border: iced::Border {
-                        radius: 4.0.into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }
-            })
+                    }),
+                text("Choose your preferred theme")
+                    .size(14)
+                    .style(|theme: &Theme| {
+                        text::Style {
+                            color: Some(theme.extended_palette().background.strong.text),
+                        }
+                    }),
+                pick_list(
+                    AppTheme::all(),
+                    Some(settings.theme),
+                    SettingsMessage::ThemeSelected,
+                )
+                .placeholder("Select a theme...")
+                .text_size(15)
+                .padding(12)
+                .width(Length::Fill)
+                .style(|theme: &Theme, status| {
+                    let palette = theme.extended_palette();
+                    pick_list::Style {
+                        text_color: palette.background.base.text,
+                        background: iced::Background::Color(palette.background.weak.color),
+                        placeholder_color: palette.background.strong.text,
+                        handle_color: palette.secondary.base.color,
+                        border: iced::Border {
+                            color: if matches!(status, pick_list::Status::Active) {
+                                palette.primary.strong.color
+                            } else {
+                                palette.background.strong.color
+                            },
+                            width: if matches!(status, pick_list::Status::Active) { 2.0 } else { 1.0 },
+                            radius: 8.0.into(),
+                        },
+                    }
+                })
+            ]
+            .spacing(12)
+            .padding(Padding::from([20, 24]))
+        )
+        .width(Length::Fill)
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(iced::Background::Color(palette.background.weak.color)),
+                border: iced::Border {
+                    color: palette.background.strong.color,
+                    width: 0.0,
+                    radius: 12.0.into(),
+                },
+                shadow: Shadow {
+                    color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 8.0,
+                },
+                ..Default::default()
+            }
+        })
+    );
+
+    // Content options section
+    content = content.push(
+        container(
+            column![
+                text("Content Display")
+                    .size(20)
+                    .style(|theme: &Theme| {
+                        text::Style {
+                            color: Some(theme.palette().text),
+                        }
+                    }),
+                text("Customize what appears in articles")
+                    .size(14)
+                    .style(|theme: &Theme| {
+                        text::Style {
+                            color: Some(theme.extended_palette().background.strong.text),
+                        }
+                    }),
+                // Toggle buttons container
+                column![
+                    create_toggle_button(
+                        if settings.show_images { "✓ Show Images" } else { "Show Images" },
+                        settings.show_images,
+                        SettingsMessage::ToggleImages
+                    ),
+                    create_toggle_button(
+                        if settings.show_excerpts { "✓ Show Excerpts" } else { "Show Excerpts" },
+                        settings.show_excerpts,
+                        SettingsMessage::ToggleExcerpts
+                    ),
+                ]
+                .spacing(12)
+            ]
+            .spacing(12)
+            .padding(Padding::from([20, 24]))
+        )
+        .width(Length::Fill)
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(iced::Background::Color(palette.background.weak.color)),
+                border: iced::Border {
+                    color: palette.background.strong.color,
+                    width: 0.0,
+                    radius: 12.0.into(),
+                },
+                shadow: Shadow {
+                    color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 8.0,
+                },
+                ..Default::default()
+            }
+        })
     );
 
     content = content.push(
         container(column![])
-            .height(2)
+            .height(1)
             .width(Length::Fill)
-            .style(|_theme: &Theme| {
+            .style(|theme: &Theme| {
                 container::Style {
-                    background: Some(iced::Background::Color(color!(0x3A3A3A))),
+                    background: Some(iced::Background::Color(theme.extended_palette().background.strong.color)),
                     ..Default::default()
                 }
             })
     );
 
-    // Close button
+    // Close button with Material FAB style
     content = content.push(
-        button(text("Close").size(14).color(color!(0xE0E0E0)))
+        button(text("Close Settings").size(16))
             .on_press(SettingsMessage::CloseSettings)
-            .padding([10, 20])
-            .style(|_theme: &Theme, _status| {
-                button::Style {
-                    background: Some(iced::Background::Color(color!(0x3A7CA5))),
-                    text_color: color!(0xE0E0E0),
+            .padding([14, 32])
+            .width(Length::Fill)
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                let base = button::Style {
+                    background: Some(iced::Background::Color(palette.primary.strong.color)),
+                    text_color: palette.primary.strong.text,
                     border: iced::Border {
-                        radius: 4.0.into(),
+                        radius: 8.0.into(),
                         ..Default::default()
                     },
-                    ..Default::default()
+                    shadow: Shadow {
+                        color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 4.0,
+                    },
+                };
+                
+                match status {
+                    button::Status::Hovered => button::Style {
+                        shadow: Shadow {
+                            color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.25),
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 8.0,
+                        },
+                        ..base
+                    },
+                    button::Status::Pressed => button::Style {
+                        background: Some(iced::Background::Color(palette.primary.base.color)),
+                        shadow: Shadow {
+                            color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                            offset: iced::Vector::new(0.0, 1.0),
+                            blur_radius: 2.0,
+                        },
+                        ..base
+                    },
+                    _ => base,
                 }
             })
     );
@@ -157,10 +230,71 @@ pub fn settings_view<'a>(settings: &'a AppSettings) -> Element<'a, SettingsMessa
         .width(Length::Fill)
         .height(Length::Fill)
         .center(Length::Fill)
-        .style(|_theme: &Theme| {
+        .style(|theme: &Theme| {
             container::Style {
-                background: Some(iced::Background::Color(color!(0x1A1A1A))),
+                background: Some(iced::Background::Color(theme.extended_palette().background.base.color)),
                 ..Default::default()
+            }
+        })
+        .into()
+}
+
+fn create_toggle_button(label: &str, is_active: bool, message: SettingsMessage) -> Element<'_, SettingsMessage> {
+    button(text(label).size(15))
+        .on_press(message)
+        .padding([12, 20])
+        .width(Length::Fill)
+        .style(move |theme: &Theme, status| {
+            let palette = theme.extended_palette();
+            let base = button::Style {
+                background: Some(iced::Background::Color(
+                    if is_active {
+                        palette.primary.strong.color
+                    } else {
+                        palette.background.strong.color
+                    }
+                )),
+                text_color: if is_active {
+                    palette.primary.strong.text
+                } else {
+                    palette.background.base.text
+                },
+                border: iced::Border {
+                    radius: 8.0.into(),
+                    ..Default::default()
+                },
+                shadow: Shadow {
+                    color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.08),
+                    offset: iced::Vector::new(0.0, 1.0),
+                    blur_radius: 3.0,
+                },
+            };
+            
+            match status {
+                button::Status::Hovered => button::Style {
+                    background: Some(iced::Background::Color(
+                        if is_active {
+                            palette.primary.base.color
+                        } else {
+                            palette.secondary.weak.color
+                        }
+                    )),
+                    shadow: Shadow {
+                        color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.12),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 6.0,
+                    },
+                    ..base
+                },
+                button::Status::Pressed => button::Style {
+                    shadow: Shadow {
+                        color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.05),
+                        offset: iced::Vector::new(0.0, 1.0),
+                        blur_radius: 2.0,
+                    },
+                    ..base
+                },
+                _ => base,
             }
         })
         .into()

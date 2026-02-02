@@ -103,7 +103,7 @@ impl App {
             Message::Content(content_msg) => match content_msg {
                 ContentMessage::ArticleClicked(article) => {
                     // Forward to main message handler
-                    return self.update(Message::ArticleClicked(article));
+                    self.update(Message::ArticleClicked(article))
                 }
             },
             Message::Settings(settings_msg) => match settings_msg {

@@ -1,5 +1,5 @@
 use iced::widget::{button, column, container, scrollable, text, Column};
-use iced::{color, Element, Length, Padding, Theme};
+use iced::{Element, Length, Padding, Shadow, Theme};
 use crate::models::Article;
 
 #[derive(Debug, Clone)]
@@ -9,53 +9,81 @@ pub enum ArticleDetailMessage {
 
 pub fn article_detail_view<'a>(article: &'a Article) -> Element<'a, ArticleDetailMessage> {
     let mut content = Column::new()
-        .spacing(20)
-        .padding(Padding::from([20, 24]))
+        .spacing(24)
+        .padding(Padding::from([32, 40]))
         .max_width(900);
 
-    // Back button
+    // Back button with Material Design styling
     let back_button = button(
         text("← Back to Articles")
             .size(16)
     )
     .on_press(ArticleDetailMessage::BackToList)
-    .padding(Padding::from([10, 20]))
-    .style(|_theme: &Theme, status| {
-        let background_color = match status {
-            button::Status::Hovered => color!(0x3A3A3A),
-            button::Status::Pressed => color!(0x2A2A2A),
-            _ => color!(0x303030),
+    .padding(Padding::from([12, 24]))
+    .style(|theme: &Theme, status| {
+        let palette = theme.extended_palette();
+        let base = button::Style {
+            background: Some(iced::Background::Color(palette.background.weak.color)),
+            text_color: palette.background.base.text,
+            border: iced::Border {
+                radius: 8.0.into(),
+                ..Default::default()
+            },
+            shadow: Shadow {
+                color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                offset: iced::Vector::new(0.0, 2.0),
+                blur_radius: 4.0,
+            },
         };
         
-        button::Style {
-            background: Some(iced::Background::Color(background_color)),
-            border: iced::Border {
-                color: color!(0x4A4A4A),
-                width: 1.0,
-                radius: 6.0.into(),
+        match status {
+            button::Status::Hovered => button::Style {
+                background: Some(iced::Background::Color(palette.background.strong.color)),
+                shadow: Shadow {
+                    color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                    offset: iced::Vector::new(0.0, 4.0),
+                    blur_radius: 8.0,
+                },
+                ..base
             },
-            text_color: color!(0xE0E0E0),
-            ..Default::default()
+            button::Status::Pressed => button::Style {
+                background: Some(iced::Background::Color(palette.secondary.weak.color)),
+                shadow: Shadow {
+                    color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.08),
+                    offset: iced::Vector::new(0.0, 1.0),
+                    blur_radius: 2.0,
+                },
+                ..base
+            },
+            _ => base,
         }
     });
     
     content = content.push(back_button);
 
-    // Article title
+    // Article title with theme colors
     content = content.push(
         text(&article.title)
-            .size(32)
-            .color(color!(0xE0E0E0))
+            .size(36)
+            .style(|theme: &Theme| {
+                text::Style {
+                    color: Some(theme.palette().text),
+                }
+            })
     );
 
-    // Divider
+    // Material-style divider
     content = content.push(
         container(column![])
             .height(2)
             .width(Length::Fill)
-            .style(|_theme: &Theme| {
+            .style(|theme: &Theme| {
                 container::Style {
-                    background: Some(iced::Background::Color(color!(0x3A3A3A))),
+                    background: Some(iced::Background::Color(theme.extended_palette().primary.strong.color)),
+                    border: iced::Border {
+                        radius: 1.0.into(),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 }
             })
@@ -65,44 +93,82 @@ pub fn article_detail_view<'a>(article: &'a Article) -> Element<'a, ArticleDetai
     if let Some(image_url) = &article.image_url {
         content = content.push(
             container(
-                text(format!("🖼️ Image: {}", image_url))
+                text(format!("🖼 Image: {}", image_url))
                     .size(14)
-                    .color(color!(0x909090))
+                    .style(|theme: &Theme| {
+                        text::Style {
+                            color: Some(theme.extended_palette().secondary.base.color),
+                        }
+                    })
             )
             .padding(Padding::from([10, 0]))
         );
     }
 
-    // Article excerpt/content
+    // Article excerpt/content with better styling
     if let Some(excerpt) = &article.excerpt {
         content = content.push(
             text(excerpt)
-                .size(16)
-                .color(color!(0xC0C0C0))
+                .size(18)
+                .style(|theme: &Theme| {
+                    text::Style {
+                        color: Some(theme.palette().text),
+                    }
+                })
                 .line_height(1.6)
         );
     } else {
         content = content.push(
             text("No content preview available.")
                 .size(16)
-                .color(color!(0x808080))
+                .style(|theme: &Theme| {
+                    text::Style {
+                        color: Some(theme.extended_palette().background.strong.text),
+                    }
+                })
         );
     }
 
-    // Article link
+    // Article link in a card
     content = content.push(
         container(
             column![
                 text("Source URL:")
                     .size(14)
-                    .color(color!(0x808080)),
+                    .style(|theme: &Theme| {
+                        text::Style {
+                            color: Some(theme.extended_palette().background.strong.text),
+                        }
+                    }),
                 text(&article.link)
                     .size(14)
-                    .color(color!(0x6A9FB5))
+                    .style(|theme: &Theme| {
+                        text::Style {
+                            color: Some(theme.extended_palette().primary.base.color),
+                        }
+                    })
             ]
-            .spacing(4)
+            .spacing(6)
+            .padding(Padding::from([16, 20]))
         )
-        .padding(Padding::new(20.0).top(20.0))
+        .width(Length::Fill)
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(iced::Background::Color(palette.background.weak.color)),
+                border: iced::Border {
+                    color: palette.background.strong.color,
+                    width: 0.0,
+                    radius: 12.0.into(),
+                },
+                shadow: Shadow {
+                    color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.08),
+                    offset: iced::Vector::new(0.0, 2.0),
+                    blur_radius: 6.0,
+                },
+                ..Default::default()
+            }
+        })
     );
 
     let scrollable_content = scrollable(content)
@@ -113,9 +179,9 @@ pub fn article_detail_view<'a>(article: &'a Article) -> Element<'a, ArticleDetai
         .width(Length::Fill)
         .height(Length::Fill)
         .center_x(Length::Fill)
-        .style(|_theme: &Theme| {
+        .style(|theme: &Theme| {
             container::Style {
-                background: Some(iced::Background::Color(color!(0x1A1A1A))),
+                background: Some(iced::Background::Color(theme.extended_palette().background.base.color)),
                 ..Default::default()
             }
         })
