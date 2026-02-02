@@ -1,14 +1,18 @@
-use iced::widget::{column, container, scrollable, text, Column};
+use iced::widget::{button, column, container, scrollable, text, Column};
 use iced::{color, Element, Length, Padding, Theme};
 use crate::models::{Article, AppSettings};
+use crate::db::ArticleDatabase;
 
 #[derive(Debug, Clone)]
-pub enum ContentMessage {}
+pub enum ContentMessage {
+    ArticleClicked(Article),
+}
 
 pub fn content_view<'a>(
     articles: &'a [Article],
     loading: bool,
     settings: &'a AppSettings,
+    db: &'a ArticleDatabase,
 ) -> Element<'a, ContentMessage> {
     let mut article_list = Column::new()
         .spacing(16)
@@ -48,11 +52,25 @@ pub fn content_view<'a>(
         for article in articles {
             let mut article_content = Column::new().spacing(6);
 
-            // Add article title
+            // Check if article was viewed
+            let is_viewed = db.is_viewed(&article.link).unwrap_or(false);
+            let title_color = if is_viewed {
+                color!(0x808080) // Gray for viewed articles
+            } else {
+                color!(0xE0E0E0) // Bright for unviewed articles
+            };
+
+            // Add article title with viewed indicator
+            let title_text = if is_viewed {
+                format!("✓ {}", &article.title)
+            } else {
+                article.title.clone()
+            };
+            
             article_content = article_content.push(
-                text(&article.title)
+                text(title_text)
                     .size(18)
-                    .color(color!(0xE0E0E0))
+                    .color(title_color)
             );
 
             // Add image if available and enabled in settings
@@ -86,21 +104,33 @@ pub fn content_view<'a>(
                     .color(color!(0x808080))
             );
 
-            let article_item = container(article_content.padding(Padding::from([16, 20])))
-                .width(Length::Fill)
-                .style(|_theme: &Theme| {
-                    container::Style {
-                        background: Some(iced::Background::Color(color!(0x252525))),
-                        border: iced::Border {
-                            color: color!(0x3A3A3A),
-                            width: 1.0,
-                            radius: 6.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                });
+            // Make the entire article clickable
+            let article_button = button(
+                container(article_content.padding(Padding::from([16, 20])))
+                    .width(Length::Fill)
+            )
+            .on_press(ContentMessage::ArticleClicked(article.clone()))
+            .padding(0)
+            .style(move |_theme: &Theme, status| {
+                let background_color = match status {
+                    button::Status::Hovered => color!(0x2A2A2A),
+                    button::Status::Pressed => color!(0x202020),
+                    _ => color!(0x252525),
+                };
+                
+                button::Style {
+                    background: Some(iced::Background::Color(background_color)),
+                    border: iced::Border {
+                        color: color!(0x3A3A3A),
+                        width: 1.0,
+                        radius: 6.0.into(),
+                    },
+                    text_color: color!(0xE0E0E0),
+                    ..Default::default()
+                }
+            });
 
-            article_list = article_list.push(article_item);
+            article_list = article_list.push(article_button);
         }
     }
 
