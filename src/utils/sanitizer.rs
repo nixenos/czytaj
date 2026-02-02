@@ -1,32 +1,52 @@
 use regex::Regex;
+use once_cell::sync::Lazy;
+
+// Compile regexes once for better performance
+static SCRIPT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)<script[^>]*>.*?</script>").unwrap()
+});
+
+static STYLE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)<style[^>]*>.*?</style>").unwrap()
+});
+
+static IFRAME_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)<iframe[^>]*>.*?</iframe>").unwrap()
+});
+
+static EVENT_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?i)\s+on\w+\s*=\s*["'][^"']*["']"#).unwrap()
+});
+
+static JS_PROTOCOL_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)javascript:").unwrap()
+});
+
+static HTML_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"<[^>]+>").unwrap()
+});
 
 /// Sanitize HTML content by removing potentially dangerous tags and scripts
 pub fn sanitize_html(content: &str) -> String {
     let mut sanitized = content.to_string();
     
     // Remove script tags and their content
-    let script_regex = Regex::new(r"(?i)<script[^>]*>.*?</script>").unwrap();
-    sanitized = script_regex.replace_all(&sanitized, "").to_string();
+    sanitized = SCRIPT_REGEX.replace_all(&sanitized, "").to_string();
     
     // Remove style tags and their content
-    let style_regex = Regex::new(r"(?i)<style[^>]*>.*?</style>").unwrap();
-    sanitized = style_regex.replace_all(&sanitized, "").to_string();
+    sanitized = STYLE_REGEX.replace_all(&sanitized, "").to_string();
     
     // Remove iframe tags
-    let iframe_regex = Regex::new(r"(?i)<iframe[^>]*>.*?</iframe>").unwrap();
-    sanitized = iframe_regex.replace_all(&sanitized, "").to_string();
+    sanitized = IFRAME_REGEX.replace_all(&sanitized, "").to_string();
     
     // Remove event handlers (onclick, onerror, etc.)
-    let event_regex = Regex::new(r#"(?i)\s+on\w+\s*=\s*["'][^"']*["']"#).unwrap();
-    sanitized = event_regex.replace_all(&sanitized, "").to_string();
+    sanitized = EVENT_REGEX.replace_all(&sanitized, "").to_string();
     
     // Remove javascript: protocol
-    let js_protocol_regex = Regex::new(r"(?i)javascript:").unwrap();
-    sanitized = js_protocol_regex.replace_all(&sanitized, "").to_string();
+    sanitized = JS_PROTOCOL_REGEX.replace_all(&sanitized, "").to_string();
     
     // Strip remaining HTML tags for plain text
-    let html_regex = Regex::new(r"<[^>]+>").unwrap();
-    sanitized = html_regex.replace_all(&sanitized, "").to_string();
+    sanitized = HTML_REGEX.replace_all(&sanitized, "").to_string();
     
     // Decode HTML entities
     sanitized = html_escape::decode_html_entities(&sanitized).to_string();

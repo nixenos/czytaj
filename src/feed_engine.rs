@@ -95,9 +95,13 @@ fn extract_image_url(entry: &feed_rs::model::Entry) -> Option<String> {
 
 fn extract_first_image_from_html(html: &str) -> Option<String> {
     use regex::Regex;
+    use once_cell::sync::Lazy;
     
-    let img_regex = Regex::new(r#"<img[^>]+src=["']([^"']+)["']"#).ok()?;
-    img_regex
+    static IMG_REGEX: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"<img[^>]+src=["']([^"']+)["']"#).unwrap()
+    });
+    
+    IMG_REGEX
         .captures(html)
         .and_then(|cap| cap.get(1))
         .map(|m| m.as_str().to_string())
