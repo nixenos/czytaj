@@ -7,7 +7,7 @@ mod models;
 mod utils;
 
 use db::ArticleDatabase;
-use models::{AppSettings, Article, Feed, FeedData};
+use models::{AppSettings, Feed, FeedData};
 
 // Application state
 pub struct AppState {

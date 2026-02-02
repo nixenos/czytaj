@@ -4,4 +4,4 @@ pub mod settings;
 
 pub use article::Article;
 pub use feed::{Feed, FeedData};
-pub use settings::{AppSettings, AppTheme};
+pub use settings::AppSettings;
