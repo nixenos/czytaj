@@ -4,6 +4,8 @@ Czytaj is a simple GUI RSS/ATOM reader written in Rust with a modern Material De
 ## Features
 
 - 📰 **RSS/ATOM Feed Reader** - Subscribe to your favorite feeds
+- 📖 **Article Viewer** - Click articles to read in a dedicated detail view
+- 💾 **View Tracking** - Automatically tracks which articles you've read
 - 🎨 **23 Beautiful Themes** - Choose from Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, and more
 - ✨ **Modern UI** - Material Design with smooth animations and transitions
 - 🌓 **Light & Dark Themes** - Multiple options for both light and dark preferences
@@ -45,7 +47,10 @@ cargo build --release
 2. Enter an RSS/ATOM feed URL in the sidebar
 3. Click "Add Feed" to subscribe
 4. Articles will appear in the main content area
-5. Click the ⚙ Settings button to customize appearance
+5. **Click any article** to view it in full detail
+6. Use the back button to return to the article list
+7. Viewed articles appear with muted colors for easy tracking
+8. Click the ⚙ Settings button to customize appearance
 
 ## Design
 
@@ -64,6 +69,7 @@ For detailed information about the design system, see [DESIGN_IMPROVEMENTS.md](D
 - [UI Visual Guide](UI_VISUAL_GUIDE.md) - Visual mockups and comparisons
 - [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Complete change summary
 - [Before & After](BEFORE_AFTER_SUMMARY.md) - Theme fix comparison
+- [Merge Summary](MERGE_SUMMARY.md) - Main branch integration details
 
 ## License
 
