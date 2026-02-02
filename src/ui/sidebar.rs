@@ -1,5 +1,5 @@
 use iced::widget::{button, column, container, text, text_input, Column};
-use iced::{color, Element, Length, Padding, Theme};
+use iced::{Element, Length, Padding, Shadow, Theme};
 use crate::models::Feed;
 
 #[derive(Debug, Clone)]
@@ -15,45 +15,74 @@ pub fn sidebar_view<'a>(
     feed_input: &'a str,
 ) -> Element<'a, SidebarMessage> {
     let mut feed_list = Column::new()
-        .spacing(8)
-        .padding(Padding::from([12, 16]));
+        .spacing(12)
+        .padding(Padding::from([16, 20]));
 
+    // Modern header with theme-aware colors
     feed_list = feed_list.push(
         text("Feeds")
-            .size(24)
-            .color(color!(0xE0E0E0))
+            .size(28)
+            .style(|theme: &Theme| {
+                text::Style {
+                    color: Some(theme.palette().text),
+                }
+            })
     );
 
+    // Material-style divider with theme colors
     feed_list = feed_list.push(
         container(column![])
             .height(1)
             .width(Length::Fill)
-            .style(|_theme: &Theme| {
+            .style(|theme: &Theme| {
                 container::Style {
-                    background: Some(iced::Background::Color(color!(0x3A3A3A))),
+                    background: Some(iced::Background::Color(theme.extended_palette().background.strong.color)),
                     ..Default::default()
                 }
             })
     );
 
+    // Feed list with Material card style and hover effects
     for feed in feeds {
         feed_list = feed_list.push(
             button(
                 text(&feed.title)
-                    .size(14)
-                    .color(color!(0xB0B0B0))
+                    .size(15)
             )
             .on_press(SidebarMessage::RefreshFeed(feed.url.clone()))
-            .padding([8, 12])
-            .style(|_theme: &Theme, _status| {
-                button::Style {
-                    background: Some(iced::Background::Color(color!(0x2A2A2A))),
-                    text_color: color!(0xB0B0B0),
+            .padding([12, 16])
+            .width(Length::Fill)
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                let base = button::Style {
+                    background: Some(iced::Background::Color(palette.background.weak.color)),
+                    text_color: palette.background.weak.text,
                     border: iced::Border {
-                        radius: 4.0.into(),
+                        radius: 8.0.into(),
                         ..Default::default()
                     },
-                    ..Default::default()
+                    shadow: Shadow {
+                        color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 4.0,
+                    },
+                };
+                
+                match status {
+                    button::Status::Hovered => button::Style {
+                        background: Some(iced::Background::Color(palette.background.strong.color)),
+                        shadow: Shadow {
+                            color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 8.0,
+                        },
+                        ..base
+                    },
+                    button::Status::Pressed => button::Style {
+                        background: Some(iced::Background::Color(palette.primary.weak.color)),
+                        ..base
+                    },
+                    _ => base,
                 }
             })
         );
@@ -63,55 +92,94 @@ pub fn sidebar_view<'a>(
         container(column![])
             .height(1)
             .width(Length::Fill)
-            .style(|_theme: &Theme| {
+            .style(|theme: &Theme| {
                 container::Style {
-                    background: Some(iced::Background::Color(color!(0x3A3A3A))),
+                    background: Some(iced::Background::Color(theme.extended_palette().background.strong.color)),
                     ..Default::default()
                 }
             })
     );
 
+    // Section header
     feed_list = feed_list.push(
         text("Add Feed")
-            .size(16)
-            .color(color!(0xE0E0E0))
+            .size(18)
+            .style(|theme: &Theme| {
+                text::Style {
+                    color: Some(theme.palette().text),
+                }
+            })
     );
 
+    // Modern input field with theme colors
     feed_list = feed_list.push(
         text_input("Enter feed URL...", feed_input)
             .on_input(SidebarMessage::FeedInputChanged)
             .on_submit(SidebarMessage::AddFeed)
-            .padding(10)
-            .size(14)
-            .style(|_theme: &Theme, _status| {
+            .padding(12)
+            .size(15)
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
                 text_input::Style {
-                    background: iced::Background::Color(color!(0x2A2A2A)),
+                    background: iced::Background::Color(palette.background.weak.color),
                     border: iced::Border {
-                        color: color!(0x3A3A3A),
-                        width: 1.0,
-                        radius: 4.0.into(),
+                        color: if matches!(status, text_input::Status::Focused) {
+                            palette.primary.strong.color
+                        } else {
+                            palette.background.strong.color
+                        },
+                        width: if matches!(status, text_input::Status::Focused) { 2.0 } else { 1.0 },
+                        radius: 8.0.into(),
                     },
-                    icon: color!(0x808080),
-                    placeholder: color!(0x606060),
-                    value: color!(0xE0E0E0),
-                    selection: color!(0x4A4A4A),
+                    icon: palette.background.base.text,
+                    placeholder: palette.background.strong.text,
+                    value: palette.background.base.text,
+                    selection: palette.primary.weak.color,
                 }
             })
     );
 
+    // Material FAB-style button
     feed_list = feed_list.push(
-        button(text("Add").size(14).color(color!(0xE0E0E0)))
+        button(text("Add Feed").size(15))
             .on_press(SidebarMessage::AddFeed)
-            .padding([10, 20])
-            .style(|_theme: &Theme, _status| {
-                button::Style {
-                    background: Some(iced::Background::Color(color!(0x3A7CA5))),
-                    text_color: color!(0xE0E0E0),
+            .padding([12, 24])
+            .width(Length::Fill)
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                let base = button::Style {
+                    background: Some(iced::Background::Color(palette.primary.strong.color)),
+                    text_color: palette.primary.strong.text,
                     border: iced::Border {
-                        radius: 4.0.into(),
+                        radius: 8.0.into(),
                         ..Default::default()
                     },
-                    ..Default::default()
+                    shadow: Shadow {
+                        color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                        offset: iced::Vector::new(0.0, 2.0),
+                        blur_radius: 4.0,
+                    },
+                };
+                
+                match status {
+                    button::Status::Hovered => button::Style {
+                        shadow: Shadow {
+                            color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.25),
+                            offset: iced::Vector::new(0.0, 4.0),
+                            blur_radius: 8.0,
+                        },
+                        ..base
+                    },
+                    button::Status::Pressed => button::Style {
+                        background: Some(iced::Background::Color(palette.primary.base.color)),
+                        shadow: Shadow {
+                            color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                            offset: iced::Vector::new(0.0, 1.0),
+                            blur_radius: 2.0,
+                        },
+                        ..base
+                    },
+                    _ => base,
                 }
             })
     );
@@ -120,41 +188,72 @@ pub fn sidebar_view<'a>(
         container(column![])
             .height(1)
             .width(Length::Fill)
-            .style(|_theme: &Theme| {
+            .style(|theme: &Theme| {
                 container::Style {
-                    background: Some(iced::Background::Color(color!(0x3A3A3A))),
+                    background: Some(iced::Background::Color(theme.extended_palette().background.strong.color)),
                     ..Default::default()
                 }
             })
     );
 
+    // Settings button with icon
     feed_list = feed_list.push(
-        button(text("⚙ Settings").size(14).color(color!(0xE0E0E0)))
+        button(text("⚙ Settings").size(15))
             .on_press(SidebarMessage::OpenSettings)
-            .padding([10, 20])
-            .style(|_theme: &Theme, _status| {
-                button::Style {
-                    background: Some(iced::Background::Color(color!(0x2A2A2A))),
-                    text_color: color!(0xE0E0E0),
+            .padding([12, 24])
+            .width(Length::Fill)
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                let base = button::Style {
+                    background: Some(iced::Background::Color(palette.background.weak.color)),
+                    text_color: palette.background.base.text,
                     border: iced::Border {
-                        radius: 4.0.into(),
+                        radius: 8.0.into(),
                         ..Default::default()
                     },
-                    ..Default::default()
+                    shadow: Shadow {
+                        color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.1),
+                        offset: iced::Vector::new(0.0, 1.0),
+                        blur_radius: 2.0,
+                    },
+                };
+                
+                match status {
+                    button::Status::Hovered => button::Style {
+                        background: Some(iced::Background::Color(palette.background.strong.color)),
+                        shadow: Shadow {
+                            color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.15),
+                            offset: iced::Vector::new(0.0, 3.0),
+                            blur_radius: 6.0,
+                        },
+                        ..base
+                    },
+                    button::Status::Pressed => button::Style {
+                        background: Some(iced::Background::Color(palette.secondary.weak.color)),
+                        ..base
+                    },
+                    _ => base,
                 }
             })
     );
 
+    // Sidebar container with Material elevation
     container(feed_list)
-        .width(280)
+        .width(300)
         .height(Length::Fill)
-        .style(|_theme: &Theme| {
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
             container::Style {
-                background: Some(iced::Background::Color(color!(0x1E1E1E))),
+                background: Some(iced::Background::Color(palette.background.base.color)),
                 border: iced::Border {
-                    color: color!(0x3A3A3A),
+                    color: palette.background.strong.color,
                     width: 0.0,
                     radius: 0.0.into(),
+                },
+                shadow: Shadow {
+                    color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.12),
+                    offset: iced::Vector::new(2.0, 0.0),
+                    blur_radius: 8.0,
                 },
                 ..Default::default()
             }
