@@ -1,8 +1,12 @@
-use iced::widget::{button, column, container, row, scrollable, text, text_input, Column};
-use iced::{color, Element, Length, Padding, Task, Theme};
+use iced::{Element, Task, Theme};
 
 mod feed_engine;
-use feed_engine::{fetch_feed, Article, FeedData};
+mod models;
+mod ui;
+mod utils;
+
+use models::{AppSettings, Article, Feed, FeedData};
+use ui::{content::ContentMessage, settings::SettingsMessage, sidebar::SidebarMessage};
 
 fn main() -> iced::Result {
     iced::application("Czytaj - RSS Reader", App::update, App::view)
@@ -10,25 +14,21 @@ fn main() -> iced::Result {
         .run_with(App::new)
 }
 
-#[derive(Debug, Clone)]
-struct Feed {
-    url: String,
-    title: String,
-}
-
 struct App {
     feeds: Vec<Feed>,
     articles: Vec<Article>,
     feed_input: String,
     loading: bool,
+    settings: AppSettings,
+    show_settings: bool,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
-    FeedInputChanged(String),
-    AddFeed,
+    Sidebar(SidebarMessage),
+    Content(ContentMessage),
+    Settings(SettingsMessage),
     FeedFetched(String, Result<FeedData, String>),
-    RefreshFeed(String),
 }
 
 impl App {
@@ -39,6 +39,8 @@ impl App {
                 articles: vec![],
                 feed_input: String::new(),
                 loading: false,
+                settings: AppSettings::default(),
+                show_settings: false,
             },
             Task::none(),
         )
@@ -46,41 +48,63 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::FeedInputChanged(value) => {
-                self.feed_input = value;
-                Task::none()
-            }
-            Message::AddFeed => {
-                if self.feed_input.trim().is_empty() {
-                    return Task::none();
+            Message::Sidebar(sidebar_msg) => match sidebar_msg {
+                SidebarMessage::FeedInputChanged(value) => {
+                    self.feed_input = value;
+                    Task::none()
                 }
+                SidebarMessage::AddFeed => {
+                    if self.feed_input.trim().is_empty() {
+                        return Task::none();
+                    }
 
-                let url = self.feed_input.clone();
-                self.feeds.push(Feed {
-                    url: url.clone(),
-                    title: "Loading...".to_string(),
-                });
-                self.feed_input.clear();
-                self.loading = true;
+                    let url = self.feed_input.clone();
+                    self.feeds.push(Feed::new(url.clone(), "Loading...".to_string()));
+                    self.feed_input.clear();
+                    self.loading = true;
 
-                Task::perform(
-                    async move {
-                        let result = fetch_feed(url.clone()).await;
-                        (url, result)
-                    },
-                    |(url, result)| Message::FeedFetched(url, result),
-                )
-            }
-            Message::RefreshFeed(url) => {
-                self.loading = true;
-                Task::perform(
-                    async move {
-                        let result = fetch_feed(url.clone()).await;
-                        (url, result)
-                    },
-                    |(url, result)| Message::FeedFetched(url, result),
-                )
-            }
+                    Task::perform(
+                        async move {
+                            let result = feed_engine::fetch_feed(url.clone()).await;
+                            (url, result)
+                        },
+                        |(url, result)| Message::FeedFetched(url, result),
+                    )
+                }
+                SidebarMessage::RefreshFeed(url) => {
+                    self.loading = true;
+                    Task::perform(
+                        async move {
+                            let result = feed_engine::fetch_feed(url.clone()).await;
+                            (url, result)
+                        },
+                        |(url, result)| Message::FeedFetched(url, result),
+                    )
+                }
+                SidebarMessage::OpenSettings => {
+                    self.show_settings = true;
+                    Task::none()
+                }
+            },
+            Message::Content(_) => Task::none(),
+            Message::Settings(settings_msg) => match settings_msg {
+                SettingsMessage::ThemeSelected(theme) => {
+                    self.settings.theme = theme;
+                    Task::none()
+                }
+                SettingsMessage::ToggleImages => {
+                    self.settings.show_images = !self.settings.show_images;
+                    Task::none()
+                }
+                SettingsMessage::ToggleExcerpts => {
+                    self.settings.show_excerpts = !self.settings.show_excerpts;
+                    Task::none()
+                }
+                SettingsMessage::CloseSettings => {
+                    self.show_settings = false;
+                    Task::none()
+                }
+            },
             Message::FeedFetched(url, result) => {
                 self.loading = false;
                 match result {
@@ -103,222 +127,28 @@ impl App {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let content = row![
-            self.sidebar(),
-            self.content(),
-        ]
-        .spacing(0);
+        use iced::widget::{container, row};
+        use iced::Length;
 
-        container(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .padding(0)
-            .into()
-    }
-
-    fn sidebar(&self) -> Element<'_, Message> {
-        let mut feed_list = Column::new()
-            .spacing(8)
-            .padding(Padding::from([12, 16]));
-
-        feed_list = feed_list.push(
-            text("Feeds")
-                .size(24)
-                .color(color!(0xE0E0E0))
-        );
-
-        feed_list = feed_list.push(
-            container(column![])
-                .height(1)
-                .width(Length::Fill)
-                .style(|_theme: &Theme| {
-                    container::Style {
-                        background: Some(iced::Background::Color(color!(0x3A3A3A))),
-                        ..Default::default()
-                    }
-                })
-        );
-
-        for feed in &self.feeds {
-            feed_list = feed_list.push(
-                button(
-                    text(&feed.title)
-                        .size(14)
-                        .color(color!(0xB0B0B0))
-                )
-                .on_press(Message::RefreshFeed(feed.url.clone()))
-                .padding([8, 12])
-                .style(|_theme: &Theme, _status| {
-                    button::Style {
-                        background: Some(iced::Background::Color(color!(0x2A2A2A))),
-                        text_color: color!(0xB0B0B0),
-                        border: iced::Border {
-                            radius: 4.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    }
-                })
-            );
-        }
-
-        feed_list = feed_list.push(
-            container(column![])
-                .height(1)
-                .width(Length::Fill)
-                .style(|_theme: &Theme| {
-                    container::Style {
-                        background: Some(iced::Background::Color(color!(0x3A3A3A))),
-                        ..Default::default()
-                    }
-                })
-        );
-
-        feed_list = feed_list.push(
-            text("Add Feed")
-                .size(16)
-                .color(color!(0xE0E0E0))
-        );
-
-        feed_list = feed_list.push(
-            text_input("Enter feed URL...", &self.feed_input)
-                .on_input(Message::FeedInputChanged)
-                .on_submit(Message::AddFeed)
-                .padding(10)
-                .size(14)
-                .style(|_theme: &Theme, _status| {
-                    text_input::Style {
-                        background: iced::Background::Color(color!(0x2A2A2A)),
-                        border: iced::Border {
-                            color: color!(0x3A3A3A),
-                            width: 1.0,
-                            radius: 4.0.into(),
-                        },
-                        icon: color!(0x808080),
-                        placeholder: color!(0x606060),
-                        value: color!(0xE0E0E0),
-                        selection: color!(0x4A4A4A),
-                    }
-                })
-        );
-
-        feed_list = feed_list.push(
-            button(text("Add").size(14).color(color!(0xE0E0E0)))
-                .on_press(Message::AddFeed)
-                .padding([10, 20])
-                .style(|_theme: &Theme, _status| {
-                    button::Style {
-                        background: Some(iced::Background::Color(color!(0x3A7CA5))),
-                        text_color: color!(0xE0E0E0),
-                        border: iced::Border {
-                            radius: 4.0.into(),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    }
-                })
-        );
-
-        container(feed_list)
-            .width(280)
-            .height(Length::Fill)
-            .style(|_theme: &Theme| {
-                container::Style {
-                    background: Some(iced::Background::Color(color!(0x1E1E1E))),
-                    border: iced::Border {
-                        color: color!(0x3A3A3A),
-                        width: 0.0,
-                        radius: 0.0.into(),
-                    },
-                    ..Default::default()
-                }
-            })
-            .into()
-    }
-
-    fn content(&self) -> Element<'_, Message> {
-        let mut article_list = Column::new()
-            .spacing(16)
-            .padding(Padding::from([20, 24]));
-
-        article_list = article_list.push(
-            text("Articles")
-                .size(28)
-                .color(color!(0xE0E0E0))
-        );
-
-        article_list = article_list.push(
-            container(column![])
-                .height(2)
-                .width(Length::Fill)
-                .style(|_theme: &Theme| {
-                    container::Style {
-                        background: Some(iced::Background::Color(color!(0x3A3A3A))),
-                        ..Default::default()
-                    }
-                })
-        );
-
-        if self.loading {
-            article_list = article_list.push(
-                text("Loading...")
-                    .size(16)
-                    .color(color!(0x808080))
-            );
-        } else if self.articles.is_empty() {
-            article_list = article_list.push(
-                text("No articles yet. Add a feed to get started!")
-                    .size(16)
-                    .color(color!(0x808080))
-            );
+        if self.show_settings {
+            ui::settings_view(&self.settings).map(Message::Settings)
         } else {
-            for article in &self.articles {
-                let article_item = column![
-                    text(&article.title)
-                        .size(18)
-                        .color(color!(0xE0E0E0)),
-                    text(&article.link)
-                        .size(12)
-                        .color(color!(0x808080)),
-                ]
-                .spacing(6)
-                .padding(Padding::from([16, 20]));
+            let content = row![
+                ui::sidebar_view(&self.feeds, &self.feed_input).map(Message::Sidebar),
+                ui::content_view(&self.articles, self.loading, &self.settings)
+                    .map(Message::Content),
+            ]
+            .spacing(0);
 
-                article_list = article_list.push(
-                    container(article_item)
-                        .width(Length::Fill)
-                        .style(|_theme: &Theme| {
-                            container::Style {
-                                background: Some(iced::Background::Color(color!(0x252525))),
-                                border: iced::Border {
-                                    color: color!(0x3A3A3A),
-                                    width: 1.0,
-                                    radius: 6.0.into(),
-                                },
-                                ..Default::default()
-                            }
-                        })
-                );
-            }
+            container(content)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(0)
+                .into()
         }
-
-        let scrollable_content = scrollable(article_list)
-            .width(Length::Fill)
-            .height(Length::Fill);
-
-        container(scrollable_content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(|_theme: &Theme| {
-                container::Style {
-                    background: Some(iced::Background::Color(color!(0x1A1A1A))),
-                    ..Default::default()
-                }
-            })
-            .into()
     }
 
     fn theme(&self) -> Theme {
-        Theme::CatppuccinMocha
+        self.settings.theme.to_iced_theme()
     }
 }
